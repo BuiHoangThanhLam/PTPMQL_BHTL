@@ -1,31 +1,33 @@
 name: Deploy .NET 10 MVC to MonsterASP.net
+
 on:
   push:
     branches:
       - main
+
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-        
+
       # 1. Cài đặt .NET 10 SDK
       - name: Setup .NET SDK
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '10.0.x'
-          
-      # 2. Đóng gói ứng dụng
+
+      # 2. Đóng gói ứng dụng (Tự động tìm file .csproj trong toàn bộ repository)
       - name: Publish project
-        run: dotnet publish **/*.csproj -c Release -o ./publish
-        
-      # 3. TẮT SERVER
+        run: dotnet publish $(find . -name "*.csproj") -c Release -o ./publish
+
+      # 3. TẮT SERVER: Tạo và upload app_offline.htm
       - name: ⛔ Stop Server (Upload app_offline.htm)
         run: |
           echo "<html><body><h1>Updating...</h1></body></html>" > app_offline.htm
           curl -s --ftp-pasv -u "${{ secrets.FTP_USERNAME }}:${{ secrets.FTP_PASSWORD }}" -T app_offline.htm "ftp://${{ secrets.FTP_SERVER }}/wwwroot/app_offline.htm"
-          
+
       # 4. DEPLOY CODE
       - name: 🚀 Deploy App
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
@@ -40,8 +42,8 @@ jobs:
           security: loose
           exclude: |
             **/app_offline.htm
-            
-      # 5. BẬT SERVER
+
+      # 5. BẬT SERVER: Xóa file app_offline.htm
       - name: ▶️ Start Server (Delete app_offline.htm)
         if: always()
         run: |
